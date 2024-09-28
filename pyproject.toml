@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "multivec-ai"
+version = "0.1.0"
+description = "Supercharge your LLMs with synthetic high-quality multimodal Data"
+authors = ["mr-green1337 <islam.hachimi2003@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
