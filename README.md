@@ -1,7 +1,12 @@
-<<<<<<< HEAD
-# multivec
-Supercharge your LLMs with synthetic high-quality multimodal Data
-=======
-# multivec-ai
-Supercharge your LLM apps with synthetic/augmented high-quality multimodal Data
->>>>>>> 324bbbac1708fb887bd26a2a7d3157decc2bbdc0
+<div style="text-align: center;">
+    <h1 style="font-size: 36px; font-weight: bold; margin-bottom: 20px;">
+        Multivec
+    </h1>
+    <img src="assets/ostrich.png" alt="Multivec" width="300px" />
+</div>
+
+<div style="width: 100%; overflow: hidden; margin-top: 20px;">
+    <marquee behavior="scroll" direction="left" scrollamount="6" style="font-size: 24px; font-weight: bold;">
+        Supercharge your LLMs with synthetic high-quality multimodal Data
+    </marquee>
+</div>
