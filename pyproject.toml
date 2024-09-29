@@ -9,6 +9,10 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 ruff = "^0.6.8"
+pydantic = "^2.9.2"
+numpy = "^2.1.1"
+pymupdf = "^1.24.10"
+ipykernel = "^6.29.5"
 
 
 [build-system]
