@@ -1,2 +1,2 @@
 # multivec-ai
-Supercharge your LLMs with synthetic high-quality multimodal Data
+Supercharge your LLM apps with synthetic/augmented high-quality multimodal Data
