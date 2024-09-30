@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Auth DB
+encryption.key
+auth.db
+
 # Distribution / packaging
 .Python
 build/
