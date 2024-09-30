@@ -13,6 +13,10 @@ pydantic = "^2.9.2"
 numpy = "^2.1.1"
 pymupdf = "^1.24.10"
 ipykernel = "^6.29.5"
+boto3 = "^1.35.29"
+openai = "^1.50.2"
+cryptography = "^43.0.1"
+groq = "^0.11.0"
 
 
 [build-system]

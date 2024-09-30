@@ -60,12 +60,14 @@ class PDFLoader:
                 # Convert CMYK or grayscale images to RGB
                 if pixmap.n - pixmap.alpha > 3:
                     pixmap = pymupdf.Pixmap(pymupdf.csRGB, pixmap)
-                
+
                 # Create the output directory if it doesn't exist
                 if not os.path.exists(self.path_to_output_imgs):
                     os.makedirs(self.path_to_output_imgs)
 
-                image_path = f"{self.path_to_output_imgs}/image_{page_num}_{image_index}.png"
+                image_path = (
+                    f"{self.path_to_output_imgs}/image_{page_num}_{image_index}.png"
+                )
                 pixmap.save(image_path)
                 image_docs.append(
                     ImageDocument(
