@@ -1,4 +1,4 @@
-from typing import Union, List, Optional
+from typing import List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from enum import Enum

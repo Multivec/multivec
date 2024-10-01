@@ -17,6 +17,7 @@ boto3 = "^1.35.29"
 openai = "^1.50.2"
 cryptography = "^43.0.1"
 groq = "^0.11.0"
+pandas = "^2.2.3"
 
 
 [build-system]

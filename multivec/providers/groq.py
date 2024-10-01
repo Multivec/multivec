@@ -1,9 +1,7 @@
 import functools
 from typing import Optional
 
-from pydantic import Field
-import requests
-from multivec.llm.base import BaseLLM, GroqModel, TemperatureValidator
+from multivec.providers.base import BaseLLM, GroqModel, TemperatureValidator
 from groq import Groq
 
 class ChatGroq(BaseLLM):
