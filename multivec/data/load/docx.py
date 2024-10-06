@@ -6,6 +6,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import spacy
 from docx2pdf import convert
+from spacy.util import get_package_path
+from spacy.cli import download
 
 from multivec.exceptions import DOCXLoaderError
 from multivec.utils.base_format import ImageDocument, TextDocument
@@ -18,9 +20,20 @@ class DOCXLoader:
         self.docx_path = Path(docx_path)
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.mkdtemp())
         self._validate_input()
+        self._ensure_nlp_model(nlp_model)
         self.docx = Document(self.docx_path)
         self.pdf_path = self._convert_to_pdf()
         self.nlp = spacy.load(nlp_model)
+
+    def _ensure_nlp_model(self, model_name: str) -> None:
+        """Ensure that the specified spaCy NLP model is available, and download if missing."""
+        try:
+            # Check if the model is installed by trying to get its package path
+            get_package_path(model_name)
+        except OSError:
+            # If model is not installed, download it
+            print(f"Downloading spaCy model '{model_name}'...")
+            download(model_name)
 
     def _validate_input(self) -> None:
         """Validate input file and output directory."""

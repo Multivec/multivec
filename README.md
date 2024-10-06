@@ -10,3 +10,18 @@
         Supercharge your LLMs with synthetic high-quality multimodal Data
     </marquee>
 </div>
+
+<div style="display: flex; justify-content: center; margin-top: 30px;">
+    <div style="text-align: center; margin: 0 20px;">
+        <h2 style="font-size: 28px; font-weight: bold;">Load</h2>
+        <p style="font-size: 20px;">Effortlessly load your multimodal data.</p>
+    </div>
+    <div style="text-align: center; margin: 0 20px;">
+        <h2 style="font-size: 28px; font-weight: bold;">Augment</h2>
+        <p style="font-size: 20px;">Enhance your data with synthetic generation.</p>
+    </div>
+    <div style="text-align: center; margin: 0 20px;">
+        <h2 style="font-size: 28px; font-weight: bold;">Vector DB</h2>
+        <p style="font-size: 20px;">Store and retrieve high-dimensional vectors efficiently.</p>
+    </div>
+</div>
