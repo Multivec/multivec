@@ -12,10 +12,12 @@ import io
 
 from multivec.utils.base_format import ImageDocument, TextDocument
 
+
 class CSVLoader:
     """
     Load CSV File, create visualizations, and highlight important information.
     """
+
     def __init__(self, file_path: str, output_dir: Optional[str] = None):
         self.file_path = Path(file_path)
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.mkdtemp())
@@ -28,12 +30,14 @@ class CSVLoader:
     def _create_excel_visualization(self) -> str:
         wb = Workbook()
         ws = wb.active
-        
+
         # Write headers
         for col, header in enumerate(self.df.columns, start=1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = Font(bold=True)
-            cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+            cell.fill = PatternFill(
+                start_color="DDDDDD", end_color="DDDDDD", fill_type="solid"
+            )
 
         # Write data
         for row, data in enumerate(self.df.values, start=2):
@@ -58,12 +62,12 @@ class CSVLoader:
         wb = Workbook()
         ws = wb.active
         img = XLImage(excel_path)
-        ws.add_image(img, 'A1')
-        
+        ws.add_image(img, "A1")
+
         img_buffer = io.BytesIO()
         wb.save(img_buffer)
         img_buffer.seek(0)
-        
+
         return Image.open(img_buffer)
 
     def _highlight_important_info(self, image: Image.Image) -> Image.Image:
@@ -78,11 +82,11 @@ class CSVLoader:
             for col, value in enumerate(data, start=1):
                 if isinstance(value, (int, float)) and value > mean_value:
                     x = col * 100  # Adjust based on your image size
-                    y = row * 30   # Adjust based on your image size
+                    y = row * 30  # Adjust based on your image size
                     highlight_coords.append((x, y))
 
         for x, y in highlight_coords:
-            draw.rectangle([x, y, x+90, y+20], outline="red", width=2)
+            draw.rectangle([x, y, x + 90, y + 20], outline="red", width=2)
 
         return image
 
@@ -97,7 +101,7 @@ class CSVLoader:
             TextDocument(
                 content=self.df.to_csv(index=False),
                 metadata={"type": "text", "format": "csv"},
-                page_index=0
+                page_index=0,
             )
         ]
 
@@ -114,9 +118,9 @@ class CSVLoader:
                 metadata={
                     "type": "image",
                     "format": "png",
-                    "description": "Highlighted CSV visualization"
+                    "description": "Highlighted CSV visualization",
                 },
-                page_index=0
+                page_index=0,
             )
         ]
 

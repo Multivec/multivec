@@ -5,20 +5,21 @@ import openai
 
 class ChatOpenAI(BaseLLM):
     """
-    A class that integrates with the OpenAI API to generate text completions 
-    based on user prompts using a specified OpenAI model. It serves as an 
-    interface to interact with the OpenAI language models and handles 
+    A class that integrates with the OpenAI API to generate text completions
+    based on user prompts using a specified OpenAI model. It serves as an
+    interface to interact with the OpenAI language models and handles
     authentication and response generation.
 
     Attributes:
     - model: The OpenAI model to be used for generating completions.
-    - api_key: (Optional) The API key used to authenticate requests. If not provided, 
+    - api_key: (Optional) The API key used to authenticate requests. If not provided,
       it retrieves the key from the authentication module.
 
     Methods:
-    - generate(prompt: str) -> str: Generates and returns a text completion 
+    - generate(prompt: str) -> str: Generates and returns a text completion
       for the given input prompt using the specified OpenAI model.
     """
+
     def __init__(self, model: OpenAIModel, api_key: Optional[str] = None):
         super().__init__("openai", api_key)
         self.model = model

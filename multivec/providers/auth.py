@@ -4,6 +4,7 @@ import os
 from typing import Optional
 import threading
 
+
 class Auth:
     _instance = None
     _lock = threading.Lock()  # Ensures thread-safe access to database and encryption
@@ -73,7 +74,9 @@ class Auth:
             try:
                 conn = sqlite3.connect(self.db_path)
                 cursor = conn.cursor()
-                cursor.execute("SELECT key FROM auth_keys WHERE provider = ?", (provider,))
+                cursor.execute(
+                    "SELECT key FROM auth_keys WHERE provider = ?", (provider,)
+                )
                 result = cursor.fetchone()
                 if result:
                     return self.fernet.decrypt(result[0].encode()).decode()
@@ -85,7 +88,7 @@ class Auth:
 
     def rotate_key(self):
         """
-        Rotates the encryption key securely by decrypting all stored keys with the 
+        Rotates the encryption key securely by decrypting all stored keys with the
         old key and re-encrypting them with a new key.
         """
         new_key = Fernet.generate_key()
@@ -101,10 +104,12 @@ class Auth:
                 # Re-encrypt each key with the new key
                 for provider, encrypted_key in rows:
                     decrypted_key = self.fernet.decrypt(encrypted_key.encode()).decode()
-                    new_encrypted_key = new_fernet.encrypt(decrypted_key.encode()).decode()
+                    new_encrypted_key = new_fernet.encrypt(
+                        decrypted_key.encode()
+                    ).decode()
                     cursor.execute(
                         "UPDATE auth_keys SET key = ? WHERE provider = ?",
-                        (new_encrypted_key, provider)
+                        (new_encrypted_key, provider),
                     )
                 conn.commit()
 

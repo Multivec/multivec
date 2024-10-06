@@ -12,11 +12,18 @@ from spacy.cli import download
 from multivec.exceptions import DOCXLoaderError
 from multivec.utils.base_format import ImageDocument, TextDocument
 
+
 class DOCXLoader:
     """
     Load DOCX file, extract text and images, and highlight important keywords in images.
     """
-    def __init__(self, docx_path: str, output_dir: Optional[str] = None, nlp_model: str = "en_core_web_sm"):
+
+    def __init__(
+        self,
+        docx_path: str,
+        output_dir: Optional[str] = None,
+        nlp_model: str = "en_core_web_sm",
+    ):
         self.docx_path = Path(docx_path)
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.mkdtemp())
         self._validate_input()
@@ -39,20 +46,22 @@ class DOCXLoader:
         """Validate input file and output directory."""
         if not self.docx_path.exists():
             raise DOCXLoaderError(f"File not found: {self.docx_path}")
-        if not self.docx_path.suffix.lower() == '.docx':
-            raise DOCXLoaderError(f"Invalid file format. Expected .docx, got {self.docx_path.suffix}")
+        if not self.docx_path.suffix.lower() == ".docx":
+            raise DOCXLoaderError(
+                f"Invalid file format. Expected .docx, got {self.docx_path.suffix}"
+            )
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _convert_to_pdf(self) -> Path:
         """Convert DOCX to PDF for image extraction."""
         pdf_path = self.output_dir / f"{self.docx_path.stem}.pdf"
-        
+
         # Convert DOCX to PDF
         convert(self.docx_path, pdf_path)
-        
+
         if not pdf_path.exists():
             raise DOCXLoaderError(f"Failed to convert DOCX to PDF: {pdf_path}")
-        
+
         return pdf_path
 
     def extract_text(self) -> List[TextDocument]:
@@ -69,7 +78,7 @@ class DOCXLoader:
                     TextDocument(
                         content=paragraph.text,
                         metadata={"type": "text", "page": page_num},
-                        page_index=page_num
+                        page_index=page_num,
                     )
                 )
         return texts
@@ -86,7 +95,9 @@ class DOCXLoader:
             List[str]: A list of extracted keywords.
         """
         doc = self.nlp(text)
-        keywords = [token.text for token in doc if token.pos_ in ['NOUN', 'PROPN', 'ADJ']]
+        keywords = [
+            token.text for token in doc if token.pos_ in ["NOUN", "PROPN", "ADJ"]
+        ]
         return list(set(keywords))[:num_keywords]
 
     def highlight_keywords_in_image(self, image_path: str, keywords: List[str]) -> str:
@@ -132,12 +143,17 @@ class DOCXLoader:
                 xref = img_info[0]
                 base_image = pdf_document.extract_image(xref)
                 image_bytes = base_image["image"]
-                
-                image_path = self.output_dir / f"image_p{page_num}_i{img_index}.{base_image['ext']}"
+
+                image_path = (
+                    self.output_dir
+                    / f"image_p{page_num}_i{img_index}.{base_image['ext']}"
+                )
                 with open(image_path, "wb") as image_file:
                     image_file.write(image_bytes)
 
-                highlighted_image_path = self.highlight_keywords_in_image(str(image_path), keywords)
+                highlighted_image_path = self.highlight_keywords_in_image(
+                    str(image_path), keywords
+                )
 
                 image_docs.append(
                     ImageDocument(
@@ -145,11 +161,11 @@ class DOCXLoader:
                         metadata={
                             "type": "image",
                             "page": page_num,
-                            "format": base_image['ext'],
+                            "format": base_image["ext"],
                             "size": len(image_bytes),
-                            "keywords": keywords
+                            "keywords": keywords,
                         },
-                        page_index=page_num
+                        page_index=page_num,
                     )
                 )
 
@@ -163,7 +179,4 @@ class DOCXLoader:
         Returns:
             dict: A dictionary containing lists of TextDocument and ImageDocument objects.
         """
-        return {
-            "text": self.extract_text(),
-            "images": self.process_images()
-        }
+        return {"text": self.extract_text(), "images": self.process_images()}

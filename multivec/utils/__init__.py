@@ -3,6 +3,7 @@ from threading import Thread
 import time
 from itertools import cycle
 
+
 class Loader:
     def __init__(self, desc="Loading...", end="Done!", timeout=0.1):
         """
