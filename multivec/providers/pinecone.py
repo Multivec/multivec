@@ -2,34 +2,32 @@ from typing import List, Dict, Any, Optional, Union
 import pinecone
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from multivec.providers.base import BaseVectorDB, VectorDBProviderType
+from multivec.providers.embedding import Embedding, EmbeddingProvider
 from multivec.utils.base_format import BaseDocument, TextDocument, ImageDocument, AudioDocument, VideoDocument, MultimodalDocument, Vector
 from multivec.exceptions import PineconeError
 
-class Pinecone:
+class Pinecone(BaseVectorDB):
     def __init__(
         self,
         api_key: str,
         environment: str,
-        project_name: Optional[str] = None
+        project_name: Optional[str] = None,
+        embedding_provider: EmbeddingProvider = EmbeddingProvider.OPENAI,
+        embedding_model: str = "text-embedding-ada-002",
+        embedding_api_key: Optional[str] = None
     ):
-        """
-        Initialize the EnhancedPinecone client.
+        super().__init__(VectorDBProviderType.PINECONE, api_key, embedding_provider, embedding_model, embedding_api_key)
+        self.environment = environment
+        self.project_name = project_name
 
-
-        :param api_key: Pinecone API key
-        :param environment: Pinecone environment
-        :param project_name: Optional Pinecone project name
-
-        Usage example:
-            pinecone_client = EnhancedPinecone(api_key="your-api-key", environment="your-environment")
-            pinecone_client.create_index("my_index", dimension=768)
-            text_doc = TextDocument(content="example text", metadata={"source": "web"}, page_index=1)
-            image_doc = ImageDocument(image_path="path/to/image.jpg", metadata={"source": "local"}, page_index=1)
-            vectors = [Vector(data=[0.1, 0.2, ..., 0.768], dim=768) for _ in range(2)]
-            pinecone_client.add_documents([text_doc, image_doc], vectors)
-        """
         try:
-            pinecone.init(api_key=api_key, environment=environment, project_name=project_name)
+            import pinecone
+            pinecone.init(
+                api_key=self.auth.get_key(VectorDBProviderType.PINECONE),
+                environment=self.environment,
+                project_name=self.project_name
+            )
             self.index = None
         except Exception as e:
             raise PineconeError(f"Failed to initialize Pinecone: {str(e)}")
@@ -119,17 +117,24 @@ class Pinecone:
     def add_documents(
         self, 
         documents: List[BaseDocument],
-        vectors: List[Vector]
+        vectors: Optional[List[Vector]] = None
     ) -> List[str]:
         """
         Add documents and their corresponding vectors to the index.
+        If vectors are not provided, they will be generated using the embedding model.
 
         :param documents: List of BaseDocument objects
-        :param vectors: List of Vector objects
+        :param vectors: Optional list of Vector objects
         :return: List of added document IDs
         """
         if not self.index:
             raise PineconeError("No index selected. Please create or select an index first.")
+        
+        if vectors is None:
+            # Generate embeddings for the documents
+            texts = [self._get_document_text(doc) for doc in documents]
+            embeddings = self.embedding.generate(texts)
+            vectors = [Vector(data=emb, dim=len(emb)) for emb in embeddings]
         
         if len(documents) != len(vectors):
             raise ValueError("Number of documents must match number of vectors")
@@ -144,12 +149,37 @@ class Pinecone:
         except Exception as e:
             raise PineconeError(f"Failed to add documents: {str(e)}")
 
+    def _get_document_text(self, document: BaseDocument) -> str:
+        """
+        Extract text content from a document for embedding.
+
+        :param document: A BaseDocument object
+        :return: Text content of the document
+        """
+        if isinstance(document, TextDocument):
+            return document.content
+        elif isinstance(document, ImageDocument):
+            return document.caption or ""
+        elif isinstance(document, AudioDocument):
+            return document.transcript or ""
+        elif isinstance(document, VideoDocument):
+            return document.caption or ""
+        elif isinstance(document, MultimodalDocument):
+            return " ".join([self._get_document_text(comp) for comp in document.components])
+        else:
+            return ""
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def search(self, query_vector: Vector, top_k: int = 10, filter: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def search(
+        self, 
+        query: Union[str, Vector], 
+        top_k: int = 10, 
+        filter: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors in the index.
 
-        :param query_vector: Vector to search for
+        :param query: Query string or Vector to search for
         :param top_k: Number of results to return
         :param filter: Optional filter for the search
         :return: List of search results
@@ -158,10 +188,58 @@ class Pinecone:
             raise PineconeError("No index selected. Please create or select an index first.")
         
         try:
-            results = self.index.query(query_vector.data, top_k=top_k, include_metadata=True, filter=filter)
+            if isinstance(query, str):
+                query_vector = self.embedding.generate(query)[0]
+            else:
+                query_vector = query.data
+
+            results = self.index.query(query_vector, top_k=top_k, include_metadata=True, filter=filter)
             return [{"id": match.id, "score": match.score, "metadata": match.metadata} for match in results.matches]
         except Exception as e:
             raise PineconeError(f"Failed to search vectors: {str(e)}")
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def batch_upload(
+        self, 
+        documents: List[BaseDocument],
+        vectors: Optional[List[Vector]] = None,
+        batch_size: int = 100
+    ) -> List[str]:
+        """
+        Upload documents and vectors in batches.
+        If vectors are not provided, they will be generated using the embedding model.
+
+        :param documents: List of BaseDocument objects
+        :param vectors: Optional list of Vector objects
+        :param batch_size: Number of documents to upload in each batch
+        :return: List of uploaded document IDs
+        """
+        if not self.index:
+            raise PineconeError("No index selected. Please create or select an index first.")
+        
+        if vectors is None:
+            # Generate embeddings for all documents
+            texts = [self._get_document_text(doc) for doc in documents]
+            embeddings = self.embedding.generate(texts)
+            vectors = [Vector(data=emb, dim=len(emb)) for emb in embeddings]
+        
+        if len(documents) != len(vectors):
+            raise ValueError("Number of documents must match number of vectors")
+        
+        try:
+            uploaded_ids = []
+            for i in range(0, len(documents), batch_size):
+                batch_documents = documents[i:i+batch_size]
+                batch_vectors = vectors[i:i+batch_size]
+                items_to_upsert = [
+                    (doc.id, vec.data, self._prepare_metadata(doc))
+                    for doc, vec in zip(batch_documents, batch_vectors)
+                ]
+                self.index.upsert(vectors=items_to_upsert)
+                uploaded_ids.extend([doc.id for doc in batch_documents])
+            return uploaded_ids
+        except Exception as e:
+            raise PineconeError(f"Failed to batch upload documents: {str(e)}")
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def delete_documents(self, document_ids: List[str]) -> None:
@@ -218,42 +296,6 @@ class Pinecone:
                 return {}
         except Exception as e:
             raise PineconeError(f"Failed to get document: {str(e)}")
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def batch_upload(
-        self, 
-        documents: List[BaseDocument],
-        vectors: List[Vector],
-        batch_size: int = 100
-    ) -> List[str]:
-        """
-        Upload documents and vectors in batches.
-
-        :param documents: List of BaseDocument objects
-        :param vectors: List of Vector objects
-        :param batch_size: Number of documents to upload in each batch
-        :return: List of uploaded document IDs
-        """
-        if not self.index:
-            raise PineconeError("No index selected. Please create or select an index first.")
-        
-        if len(documents) != len(vectors):
-            raise ValueError("Number of documents must match number of vectors")
-        
-        try:
-            uploaded_ids = []
-            for i in range(0, len(documents), batch_size):
-                batch_documents = documents[i:i+batch_size]
-                batch_vectors = vectors[i:i+batch_size]
-                items_to_upsert = [
-                    (doc.id, vec.data, self._prepare_metadata(doc))
-                    for doc, vec in zip(batch_documents, batch_vectors)
-                ]
-                self.index.upsert(vectors=items_to_upsert)
-                uploaded_ids.extend([doc.id for doc in batch_documents])
-            return uploaded_ids
-        except Exception as e:
-            raise PineconeError(f"Failed to batch upload documents: {str(e)}")
 
     def get_index_stats(self) -> Dict[str, Any]:
         """

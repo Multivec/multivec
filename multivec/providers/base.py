@@ -2,9 +2,12 @@
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Any, Dict, Literal, Optional
+from typing import List, Any, Dict, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
+
+from multivec.providers.embedding import Embedding, EmbeddingProvider
+from multivec.utils.base_format import BaseDocument, Vector
 
 LLMProviderType = Literal["ollama", "openai", "anthropic", "bedrock"]
 
@@ -32,8 +35,19 @@ class BaseLLM(ABC):
         pass
 
 
+class VectorDBProviderType(Enum):
+    PINECONE = "pinecone"
+    QDRANT = "qdrant"
+
 class BaseVectorDB(ABC):
-    def __init__(self, provider: VectorDBProviderType, api_key: Optional[str] = None):
+    def __init__(
+        self,
+        provider: VectorDBProviderType,
+        api_key: Optional[str] = None,
+        embedding_provider: EmbeddingProvider = EmbeddingProvider.OPENAI,
+        embedding_model: str = "text-embedding-ada-002",
+        embedding_api_key: Optional[str] = None
+    ):
         from .auth import Auth
 
         self.provider = provider
@@ -43,93 +57,57 @@ class BaseVectorDB(ABC):
         elif not self.auth.get_key(provider):
             raise ValueError(f"No API key provided or found for {provider}")
 
-    @abstractmethod
-    def add_vectors(
-        self, vectors: List[List[float]], metadata: List[Dict[str, Any]]
-    ) -> List[str]:
-        """
-        Add vectors to the database with associated metadata.
-
-        :param vectors: List of vector embeddings
-        :param metadata: List of metadata dictionaries corresponding to each vector
-        :return: List of unique IDs for the added vectors
-        """
-        pass
+        self.embedding = Embedding(embedding_provider, embedding_model, api_key=embedding_api_key)
 
     @abstractmethod
-    def search_vectors(
-        self, query_vector: List[float], top_k: int = 10
-    ) -> List[Dict[str, Any]]:
-        """
-        Search for the most similar vectors to the query vector.
-
-        :param query_vector: The query vector to search for
-        :param top_k: Number of results to return
-        :return: List of dictionaries containing search results (vector IDs, scores, and metadata)
-        """
-        pass
-
-    @abstractmethod
-    def delete_vectors(self, vector_ids: List[str]) -> bool:
-        """
-        Delete vectors from the database by their IDs.
-
-        :param vector_ids: List of vector IDs to delete
-        :return: True if deletion was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def update_metadata(self, vector_id: str, metadata: Dict[str, Any]) -> bool:
-        """
-        Update the metadata for a specific vector.
-
-        :param vector_id: ID of the vector to update
-        :param metadata: New metadata to associate with the vector
-        :return: True if update was successful, False otherwise
-        """
-        pass
-
-    @abstractmethod
-    def get_vector(self, vector_id: str) -> Dict[str, Any]:
-        """
-        Retrieve a vector and its metadata by ID.
-
-        :param vector_id: ID of the vector to retrieve
-        :return: Dictionary containing the vector and its metadata
-        """
-        pass
-
-    @abstractmethod
-    def create_index(self, index_name: str, dimension: int) -> bool:
-        """
-        Create a new index in the vector database.
-
-        :param index_name: Name of the index to create
-        :param dimension: Dimensionality of the vectors to be stored
-        :return: True if index creation was successful, False otherwise
-        """
+    def create_index(self, name: str, dimension: int, **kwargs) -> None:
         pass
 
     @abstractmethod
     def list_indexes(self) -> List[str]:
-        """
-        List all available indexes in the vector database.
-
-        :return: List of index names
-        """
         pass
 
     @abstractmethod
-    def delete_index(self, index_name: str) -> bool:
-        """
-        Delete an index from the vector database.
-
-        :param index_name: Name of the index to delete
-        :return: True if deletion was successful, False otherwise
-        """
+    def delete_index(self, name: str) -> None:
         pass
 
+    @abstractmethod
+    def add_documents(
+        self, 
+        documents: List[BaseDocument],
+        vectors: Optional[List[Vector]] = None
+    ) -> List[str]:
+        pass
+
+    @abstractmethod
+    def search(
+        self, 
+        query: Union[str, Vector], 
+        top_k: int = 10, 
+        filter: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def delete_documents(self, document_ids: List[str]) -> None:
+        pass
+
+    @abstractmethod
+    def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    def get_document(self, document_id: str) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def batch_upload(
+        self, 
+        documents: List[BaseDocument],
+        vectors: Optional[List[Vector]] = None,
+        batch_size: int = 100
+    ) -> List[str]:
+        pass
 
 class TemperatureValidator(BaseModel):
     temperature: float = Field(

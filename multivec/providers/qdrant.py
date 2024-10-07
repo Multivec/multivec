@@ -5,6 +5,8 @@ from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from enum import Enum
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from multivec.providers.base import BaseVectorDB, VectorDBProviderType
+from multivec.providers.embedding import Embedding, EmbeddingProvider
 from multivec.utils.base_format import BaseDocument, TextDocument, ImageDocument, AudioDocument, VideoDocument, MultimodalDocument, Vector
 from multivec.exceptions import QdrantError
 
@@ -12,7 +14,7 @@ class QdrantConnectionType(Enum):
     LOCAL = "local"
     CLOUD = "cloud"
 
-class Qdrant:
+class Qdrant(BaseVectorDB):
     def __init__(
         self,
         connection_type: QdrantConnectionType,
@@ -20,36 +22,37 @@ class Qdrant:
         api_key: Optional[str] = None,
         host: str = "localhost",
         port: int = 6333,
-        prefer_grpc: bool = False
+        prefer_grpc: bool = False,
+        embedding_provider: EmbeddingProvider = EmbeddingProvider.OPENAI,
+        embedding_model: str = "text-embedding-ada-002",
+        embedding_api_key: Optional[str] = None
     ):
-        """
-        Initialize the Qdrant client.
-
-
-        :param connection_type: Type of connection (LOCAL or CLOUD) \n
-        :param url: URL for cloud connection \n
-        :param api_key: API key for cloud connection \n
-        :param host: Host for local connection \n
-        :param port: Port for local connection \n
-        :param prefer_grpc: Whether to prefer gRPC over HTTP \n
-
-        Usage example:
-            qdrant = Qdrant(QdrantConnectionType.CLOUD, url="https://your-qdrant-cluster-url", api_key="your-api-key") \n
-            qdrant.create_collection("my_collection", vector_size=768) \n
-            text_doc = TextDocument(content="example text", metadata={"source": "web"}, page_index=1) \n
-            image_doc = ImageDocument(image_path="path/to/image.jpg", metadata={"source": "local"}, page_index=1) \n
-            vectors = [Vector(data=[0.1, 0.2, ..., 0.768], dim=768) for _ in range(2)] \n
-            qdrant.add_documents([text_doc, image_doc], vectors) \n
-        """
+        super().__init__(VectorDBProviderType.QDRANT, api_key, embedding_provider, embedding_model, embedding_api_key)
         self.connection_type = connection_type
-        if connection_type == QdrantConnectionType.CLOUD:
-            if not url or not api_key:
-                raise ValueError("URL and API key are required for cloud connection")
-            self.client = QdrantClient(url=url, api_key=api_key, prefer_grpc=prefer_grpc)
-        else:
-            self.client = QdrantClient(host=host, port=port, prefer_grpc=prefer_grpc)
-        
-        self.collection_name = None
+        self.url = url
+        self.host = host
+        self.port = port
+        self.prefer_grpc = prefer_grpc
+
+        try:
+            from qdrant_client import QdrantClient
+            if connection_type == QdrantConnectionType.CLOUD:
+                if not url or not api_key:
+                    raise ValueError("URL and API key are required for cloud connection")
+                self.client = QdrantClient(
+                    url=self.url,
+                    api_key=self.auth.get_key(VectorDBProviderType.QDRANT),
+                    prefer_grpc=self.prefer_grpc
+                )
+            else:
+                self.client = QdrantClient(
+                    host=self.host,
+                    port=self.port,
+                    prefer_grpc=self.prefer_grpc
+                )
+            self.collection_name = None
+        except Exception as e:
+            raise QdrantError(f"Failed to initialize Qdrant: {str(e)}")
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def create_collection(self, name: str, vector_size: int) -> None:
@@ -139,21 +142,27 @@ class Qdrant:
             payload=metadata
         )
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def add_documents(
         self, 
         documents: List[BaseDocument],
-        vectors: List[Vector]
+        vectors: Optional[List[Vector]] = None
     ) -> List[str]:
         """
         Add documents and their corresponding vectors to the collection.
+        If vectors are not provided, they will be generated using the embedding model.
 
         :param documents: List of BaseDocument objects
-        :param vectors: List of Vector objects
+        :param vectors: Optional list of Vector objects
         :return: List of added document IDs
         """
         if not self.collection_name:
             raise QdrantError("No collection selected. Please create or select a collection first.")
+        
+        if vectors is None:
+            # Generate embeddings for the documents
+            texts = [self._get_document_text(doc) for doc in documents]
+            embeddings = self.embedding.generate(texts)
+            vectors = [Vector(data=emb, dim=len(emb)) for emb in embeddings]
         
         if len(documents) != len(vectors):
             raise ValueError("Number of documents must match number of vectors")
@@ -165,12 +174,36 @@ class Qdrant:
         except Exception as e:
             raise QdrantError(f"Failed to add documents: {str(e)}")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def search(self, query_vector: Vector, top_k: int = 10, filter: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def _get_document_text(self, document: BaseDocument) -> str:
+        """
+        Extract text content from a document for embedding.
+
+        :param document: A BaseDocument object
+        :return: Text content of the document
+        """
+        if isinstance(document, TextDocument):
+            return document.content
+        elif isinstance(document, ImageDocument):
+            return document.caption or ""
+        elif isinstance(document, AudioDocument):
+            return document.transcript or ""
+        elif isinstance(document, VideoDocument):
+            return document.caption or ""
+        elif isinstance(document, MultimodalDocument):
+            return " ".join([self._get_document_text(comp) for comp in document.components])
+        else:
+            return ""
+
+    def search(
+        self, 
+        query: Union[str, Vector], 
+        top_k: int = 10, 
+        filter: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors in the collection.
 
-        :param query_vector: Vector to search for
+        :param query: Query string or Vector to search for
         :param top_k: Number of results to return
         :param filter: Optional filter for the search
         :return: List of search results
@@ -179,16 +212,20 @@ class Qdrant:
             raise QdrantError("No collection selected. Please create or select a collection first.")
         
         try:
+            if isinstance(query, str):
+                query_vector = self.embedding.generate(query)[0]
+            else:
+                query_vector = query.data
+
             search_result = self.client.search(
                 collection_name=self.collection_name,
-                query_vector=query_vector.data,
+                query_vector=query_vector,
                 limit=top_k,
                 query_filter=filter
             )
             return [{"id": str(hit.id), "score": hit.score, "metadata": hit.payload} for hit in search_result]
         except Exception as e:
             raise QdrantError(f"Failed to search vectors: {str(e)}")
-
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def delete_documents(self, document_ids: List[str]) -> None:
         """
