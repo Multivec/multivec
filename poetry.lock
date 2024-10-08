@@ -412,32 +412,6 @@ files = [
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
-name = "clip"
-version = "1.0"
-description = ""
-optional = false
-python-versions = "*"
-files = []
-develop = false
-
-[package.dependencies]
-ftfy = "*"
-packaging = "*"
-regex = "*"
-torch = "*"
-torchvision = "*"
-tqdm = "*"
-
-[package.extras]
-dev = ["pytest"]
-
-[package.source]
-type = "git"
-url = "https://github.com/openai/CLIP.git"
-reference = "HEAD"
-resolved_reference = "dcba3cb2e2827b402d2701e7e1c7d9fed8a20ef1"
-
-[[package]]
 name = "cloudpathlib"
 version = "0.19.0"
 description = "pathlib-style classes for cloud storage services."
@@ -2019,6 +1993,24 @@ typing-extensions = ">=4.11,<5"
 
 [package.extras]
 datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
+
+[[package]]
+name = "openai-clip"
+version = "1.0.1"
+description = ""
+optional = false
+python-versions = "*"
+files = [
+    {file = "openai-clip-1.0.1.tar.gz", hash = "sha256:cd40bf2f205c096c49524fcbff484339f793b52afd6e7ffad80a2fe108151721"},
+]
+
+[package.dependencies]
+ftfy = "*"
+regex = "*"
+tqdm = "*"
+
+[package.extras]
+dev = ["pytest"]
 
 [[package]]
 name = "opencv-python"
@@ -4313,4 +4305,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "bcdb814243929a9457e1b540e1d2f0e0e99cf43023d67745142b72980b60e20c"
+content-hash = "27b91f2159b07b4640ee0ce526eedf2d7695f516b4623abaa0f9928928c81ede"
