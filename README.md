@@ -1,3 +1,4 @@
+[![Publish Python Package](https://github.com/Multivec/multivec/actions/workflows/release.yml/badge.svg)](https://github.com/Multivec/multivec/actions/workflows/release.yml)
 <div style="text-align: center;">
     <h1 style="font-size: 36px; font-weight: bold; margin-bottom: 20px;">
         Multivec
