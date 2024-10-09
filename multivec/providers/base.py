@@ -129,8 +129,8 @@ AnthropicModel = Literal["claude-2", "claude-instant-1"]
 BedrockModel = Literal["anthropic.claude-v2", "ai21.j2-ultra", "amazon.titan-tg1-large"]
 
 GroqModel = Literal[
-    "anthropic.claude-v2",
-    "ai21.j2-ultra",
-    "amazon.titan-tg1-large",
-    "llama-3.2-3b-preview",
+    "gemma2-9b-it",
+    "llama-3.1-70b-versatile",
+    "llama-3.1-8b-instant",
+    "llama-3.2-1b-preview",
 ]
