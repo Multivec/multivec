@@ -7,7 +7,7 @@
 
 <div style="width: 100%; overflow: hidden; margin-top: 20px;">
     <marquee behavior="scroll" direction="left" scrollamount="6" style="font-size: 24px; font-weight: bold;">
-        Supercharge your LLMs with synthetic high-quality multimodal Data
+        Supercharge your LLM apps with augmented high-quality multimodal Data
     </marquee>
 </div>
 
