@@ -1,4 +1,4 @@
-from .base import BaseLLM
+from ..base import BaseLLM
 import requests
 
 

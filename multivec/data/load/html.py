@@ -1,31 +1,40 @@
-import os
+import re
 import tempfile
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Optional
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image, ImageDraw, ImageFont
 import io
 import base64
+from loguru import logger
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
+from multivec.providers.base import BaseLLM
 from multivec.utils.base_format import ImageDocument, TextDocument
 from multivec.exceptions import HTMLLoaderError
 
 
 class HTMLLoader:
-    """Load HTML file, extract text and images, and highlight important keywords in images."""
+    """Load HTML file, extract text and images, take image screenshots, and highlight important keywords in images."""
 
     def __init__(
-        self, html_source: str, is_url: bool = False, output_dir: Optional[str] = None
+        self,
+        html_source: str,
+        llm: Optional[BaseLLM] = None,
+        output_dir: Optional[str] = None,
     ):
         self.html_source = html_source
-        self.is_url = is_url
+        self.llm = llm
+        self.is_url = bool(re.match(r"^https?://", html_source))
         self.output_dir = Path(output_dir) if output_dir else Path(tempfile.mkdtemp())
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.soup = self._load_html()
 
     def _load_html(self) -> BeautifulSoup:
         """Load HTML content from file or URL."""
+        print("is url is ", self.is_url)
         try:
             if self.is_url:
                 response = requests.get(self.html_source)
@@ -37,26 +46,27 @@ class HTMLLoader:
         except (requests.RequestException, IOError) as e:
             raise HTMLLoaderError(f"Failed to load HTML: {str(e)}")
 
-    def extract_text(self) -> List[TextDocument]:
-        """Extract text content from HTML."""
-        texts = []
+    def extract(self) -> List[TextDocument | ImageDocument]:
+        """Extract text content and images from HTML."""
+        documents = []
+
+        # Extract text
+        logger.info("Scraped Content", self.soup, self.is_url)
         for i, paragraph in enumerate(
             self.soup.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6"])
         ):
+            print(paragraph)
             text_content = paragraph.get_text().strip()
             if text_content:
-                texts.append(
+                documents.append(
                     TextDocument(
                         content=text_content,
                         metadata={"type": "text", "tag": paragraph.name},
                         page_index=i,
                     )
                 )
-        return texts
 
-    def extract_images(self) -> List[ImageDocument]:
-        """Extract images from HTML."""
-        images = []
+        # Extract images
         for i, img in enumerate(self.soup.find_all("img")):
             src = img.get("src")
             if src:
@@ -84,16 +94,47 @@ class HTMLLoader:
                     image_path = self.output_dir / image_filename
                     image.save(image_path)
 
-                    images.append(
+                    documents.append(
                         ImageDocument(
-                            content=str(image_path),
+                            image_path=str(image_path),
                             metadata={"type": "image", "original_src": src},
                             page_index=i,
                         )
                     )
                 except Exception as e:
                     print(f"Failed to process image {src}: {str(e)}")
-        return images
+
+        # Take screenshot if it's a URL
+        if self.is_url:
+            screenshot_path = self.take_screenshot()
+            documents.append(
+                ImageDocument(
+                    image_path=screenshot_path,
+                    metadata={"type": "screenshot", "original_src": self.html_source},
+                    page_index=len(documents),
+                )
+            )
+
+        return documents
+
+    def take_screenshot(self) -> str:
+        """Take a screenshot of the web page."""
+        if not self.is_url:
+            raise HTMLLoaderError("Cannot take screenshot of local HTML file.")
+
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=options)
+        try:
+            driver.get(self.html_source)
+            screenshot_path = self.output_dir / "screenshot.png"
+            driver.save_screenshot(str(screenshot_path))
+            return str(screenshot_path)
+        finally:
+            driver.quit()
 
     def highlight_keywords(self, image_path: str, keywords: List[str]) -> str:
         """Highlight keywords in the image."""
@@ -117,31 +158,47 @@ class HTMLLoader:
 
     def process(
         self, keywords: Optional[List[str]] = None
-    ) -> Tuple[List[TextDocument], List[ImageDocument]]:
-        """Process the HTML file, extract text and images, and highlight keywords in images."""
-        text_docs = self.extract_text()
-        image_docs = self.extract_images()
+    ) -> List[TextDocument | ImageDocument]:
+        """Process the HTML file, extract text and images, take screenshot, and highlight keywords in images."""
+        documents = self.extract()
+
+        if not keywords and self.llm:
+            # Extract keywords using LLM if no keywords are provided
+            text_content = " ".join(
+                doc.content for doc in documents if isinstance(doc, TextDocument)
+            )
+            keywords = self.llm.generate(
+                f"Extract important keywords from the following text, output are words separated by a comma:\n\n{text_content}"
+            ).split(",")
+            keywords = [keyword.strip() for keyword in keywords]
 
         if keywords:
-            highlighted_image_docs = []
-            for img_doc in image_docs:
-                highlighted_path = self.highlight_keywords(img_doc.content, keywords)
-                highlighted_image_docs.append(
-                    ImageDocument(
-                        content=highlighted_path,
-                        metadata={
-                            **img_doc.metadata,
-                            "highlighted": True,
-                            "keywords": keywords,
-                        },
-                        page_index=img_doc.page_index,
+            highlighted_documents = []
+            for doc in documents:
+                if isinstance(doc, ImageDocument):
+                    highlighted_path = self.highlight_keywords(doc.content, keywords)
+                    highlighted_documents.append(
+                        ImageDocument(
+                            image_path=highlighted_path,
+                            metadata={
+                                **doc.metadata,
+                                "highlighted": True,
+                                "keywords": keywords,
+                            },
+                            page_index=doc.page_index,
+                            width=doc.width,
+                            height=doc.height,
+                        )
                     )
-                )
-            image_docs = highlighted_image_docs
+                else:
+                    highlighted_documents.append(doc)
+            documents = highlighted_documents
 
-        return text_docs, image_docs
+        return documents
 
 
 # Usage example:
-# loader = HTMLLoader("http://example.com", is_url=True)
-# text_docs, image_docs = loader.process(keywords=["example", "important"])
+# from multivec.providers.llm.openai import ChatOpenAI
+# llm = ChatOpenAI(args)
+# loader = HTMLLoader("http://example.com", llm=llm)
+# documents = loader.process()

@@ -43,12 +43,12 @@ class QdrantLangChainAdapter:
     def to_tool(self, BaseTool):
         """
         Convert the Qdrant instance to a LangChain tool.
-        
+
         :param BaseTool: The LangChain BaseTool class (passed by the user)
         :return: A LangChain Tool class that can be instantiated
 
         """
-        
+
         class QdrantTool(BaseTool):
             name: str = "Qdrant Vector Database"
             description: str = "A tool for interacting with the Qdrant vector database for similarity search and document retrieval."
@@ -58,7 +58,10 @@ class QdrantLangChainAdapter:
                 """Use the tool."""
                 try:
                     # Assume query is a comma-separated list of floats representing a vector
-                    query_vector = Vector(data=[float(x.strip()) for x in query.split(',')], dim=len(query.split(',')))
+                    query_vector = Vector(
+                        data=[float(x.strip()) for x in query.split(",")],
+                        dim=len(query.split(",")),
+                    )
                     results = self.qdrant.search(query_vector, top_k=5)
                     return self._format_results(results)
                 except Exception as e:
@@ -74,11 +77,15 @@ class QdrantLangChainAdapter:
                 """Format the search results as a string."""
                 formatted = "Search Results:\n"
                 for i, result in enumerate(results, 1):
-                    formatted += f"{i}. ID: {result['id']}, Score: {result['score']:.4f}\n"
+                    formatted += (
+                        f"{i}. ID: {result['id']}, Score: {result['score']:.4f}\n"
+                    )
                     formatted += f"   Metadata: {result['metadata']}\n\n"
                 return formatted
 
-            def add_documents(self, documents: List[BaseDocument], vectors: List[Vector]) -> List[str]:
+            def add_documents(
+                self, documents: List[BaseDocument], vectors: List[Vector]
+            ) -> List[str]:
                 """Add documents to the Qdrant database."""
                 return self.qdrant.add_documents(documents, vectors)
 
@@ -86,7 +93,9 @@ class QdrantLangChainAdapter:
                 """Delete documents from the Qdrant database."""
                 self.qdrant.delete_documents(document_ids)
 
-            def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> None:
+            def update_document_metadata(
+                self, document_id: str, metadata: Dict[str, Any]
+            ) -> None:
                 """Update the metadata of a document in the Qdrant database."""
                 self.qdrant.update_document_metadata(document_id, metadata)
 

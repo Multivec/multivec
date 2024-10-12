@@ -11,3 +11,15 @@ class HTMLLoaderError(Exception):
     """Base exception for HTMLLoader errors."""
 
     pass
+
+
+class PDFLoaderError(Exception):
+    """Base exception for PDFLoader errors."""
+
+    pass
+
+
+class LLMAndKeywordsNotFound(Exception):
+    """Base exception for LLMAndKeywordsNotFound errors."""
+
+    pass

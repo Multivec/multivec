@@ -1,5 +1,5 @@
 from typing import Optional
-from .base import BaseLLM, BedrockModel
+from ..base import BaseLLM, BedrockModel
 import boto3
 import json
 

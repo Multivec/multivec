@@ -6,8 +6,30 @@ from typing import List, Any, Dict, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
+from multivec.providers.auth import Auth
 from multivec.providers.embedding import Embedding, EmbeddingProvider
 from multivec.utils.base_format import BaseDocument, Vector
+
+
+class CloudProviderType(Enum):
+    AWS = "aws"
+    AZURE = "azure"
+    GCP = "gcp"
+
+
+class BaseCloud(ABC):
+    def __init__(self, provider: CloudProviderType, api_key: Optional[str] = None):
+        self.provider = provider
+        self.auth = Auth()  # Using the singleton Auth instance
+        if api_key:
+            self.auth.set_key(provider.value, api_key)
+        elif not self.auth.get_key(provider.value):
+            raise ValueError(f"No API key provided or found for {provider}")
+
+    @abstractmethod
+    def connect(self):
+        pass
+
 
 LLMProviderType = Literal["ollama", "openai", "anthropic", "bedrock"]
 
@@ -39,6 +61,7 @@ class VectorDBProviderType(Enum):
     PINECONE = "pinecone"
     QDRANT = "qdrant"
 
+
 class BaseVectorDB(ABC):
     def __init__(
         self,
@@ -46,7 +69,7 @@ class BaseVectorDB(ABC):
         api_key: Optional[str] = None,
         embedding_provider: EmbeddingProvider = EmbeddingProvider.OPENAI,
         embedding_model: str = "text-embedding-ada-002",
-        embedding_api_key: Optional[str] = None
+        embedding_api_key: Optional[str] = None,
     ):
         from .auth import Auth
 
@@ -57,7 +80,9 @@ class BaseVectorDB(ABC):
         elif not self.auth.get_key(provider):
             raise ValueError(f"No API key provided or found for {provider}")
 
-        self.embedding = Embedding(embedding_provider, embedding_model, api_key=embedding_api_key)
+        self.embedding = Embedding(
+            embedding_provider, embedding_model, api_key=embedding_api_key
+        )
 
     @abstractmethod
     def create_index(self, name: str, dimension: int, **kwargs) -> None:
@@ -73,18 +98,16 @@ class BaseVectorDB(ABC):
 
     @abstractmethod
     def add_documents(
-        self, 
-        documents: List[BaseDocument],
-        vectors: Optional[List[Vector]] = None
+        self, documents: List[BaseDocument], vectors: Optional[List[Vector]] = None
     ) -> List[str]:
         pass
 
     @abstractmethod
     def search(
-        self, 
-        query: Union[str, Vector], 
-        top_k: int = 10, 
-        filter: Optional[Dict[str, Any]] = None
+        self,
+        query: Union[str, Vector],
+        top_k: int = 10,
+        filter: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         pass
 
@@ -93,7 +116,9 @@ class BaseVectorDB(ABC):
         pass
 
     @abstractmethod
-    def update_document_metadata(self, document_id: str, metadata: Dict[str, Any]) -> None:
+    def update_document_metadata(
+        self, document_id: str, metadata: Dict[str, Any]
+    ) -> None:
         pass
 
     @abstractmethod
@@ -102,12 +127,13 @@ class BaseVectorDB(ABC):
 
     @abstractmethod
     def batch_upload(
-        self, 
+        self,
         documents: List[BaseDocument],
         vectors: Optional[List[Vector]] = None,
-        batch_size: int = 100
+        batch_size: int = 100,
     ) -> List[str]:
         pass
+
 
 class TemperatureValidator(BaseModel):
     temperature: float = Field(

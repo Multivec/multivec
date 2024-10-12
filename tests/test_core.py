@@ -1,7 +1,9 @@
 # tests/test_core.py
 
+
 def test_always_true():
     assert True
+
 
 """
 

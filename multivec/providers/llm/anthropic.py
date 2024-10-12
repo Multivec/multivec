@@ -1,5 +1,5 @@
 from typing import Optional
-from .base import AnthropicModel, BaseLLM
+from ..base import AnthropicModel, BaseLLM
 import anthropic
 
 

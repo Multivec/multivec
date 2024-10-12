@@ -1,5 +1,5 @@
 from typing import Optional
-from .base import BaseLLM, OpenAIModel
+from ..base import BaseLLM, OpenAIModel
 import openai
 
 

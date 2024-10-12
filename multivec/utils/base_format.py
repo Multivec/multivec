@@ -57,6 +57,7 @@ class VideoDocument(BaseDocument):
     def __init__(self, **data):
         super().__init__(data_type=DataType.VIDEO, **data)
 
+
 class MultimodalDocument(BaseDocument):
     components: List[BaseDocument]
 
@@ -69,10 +70,11 @@ class DocumentCollection(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+
 class Vector(BaseDocument):
     """
     A class representing a mathematical vector with various operations.
-    
+
     This class inherits from BaseDocument and provides functionality for vector operations
     such as dot product, magnitude calculation, and normalization.
 
@@ -158,7 +160,11 @@ class Vector(BaseDocument):
         :return: A new Vector object representing the normalized vector.
         """
         mag = self.magnitude()
-        return Vector(data=(np.array(self.data) / mag).tolist(), dim=self.dim, metadata=self.metadata.copy())
+        return Vector(
+            data=(np.array(self.data) / mag).tolist(),
+            dim=self.dim,
+            metadata=self.metadata.copy(),
+        )
 
     def add(self, other: "Vector") -> "Vector":
         """
@@ -170,7 +176,11 @@ class Vector(BaseDocument):
         """
         if len(self) != len(other):
             raise ValueError("Vectors must have the same dimension for addition")
-        return Vector(data=(np.array(self.data) + np.array(other.data)).tolist(), dim=self.dim, metadata=self.metadata.copy())
+        return Vector(
+            data=(np.array(self.data) + np.array(other.data)).tolist(),
+            dim=self.dim,
+            metadata=self.metadata.copy(),
+        )
 
     def subtract(self, other: "Vector") -> "Vector":
         """
@@ -182,7 +192,11 @@ class Vector(BaseDocument):
         """
         if len(self) != len(other):
             raise ValueError("Vectors must have the same dimension for subtraction")
-        return Vector(data=(np.array(self.data) - np.array(other.data)).tolist(), dim=self.dim, metadata=self.metadata.copy())
+        return Vector(
+            data=(np.array(self.data) - np.array(other.data)).tolist(),
+            dim=self.dim,
+            metadata=self.metadata.copy(),
+        )
 
     def scale(self, scalar: float) -> "Vector":
         """
@@ -191,7 +205,11 @@ class Vector(BaseDocument):
         :param scalar: The scalar value to multiply the vector by.
         :return: A new Vector object representing the scaled vector.
         """
-        return Vector(data=(np.array(self.data) * scalar).tolist(), dim=self.dim, metadata=self.metadata.copy())
+        return Vector(
+            data=(np.array(self.data) * scalar).tolist(),
+            dim=self.dim,
+            metadata=self.metadata.copy(),
+        )
 
     def to_numpy(self) -> np.ndarray:
         """
@@ -221,7 +239,9 @@ class Vector(BaseDocument):
         :raises ValueError: If the vectors have different dimensions.
         """
         if len(self) != len(other):
-            raise ValueError("Vectors must have the same dimension for cosine similarity")
+            raise ValueError(
+                "Vectors must have the same dimension for cosine similarity"
+            )
         return self.dot(other) / (self.magnitude() * other.magnitude())
 
     # Usage example:
@@ -230,4 +250,3 @@ class Vector(BaseDocument):
     # dot_product = v1.dot(v2)
     # normalized_v1 = v1.normalize()
     # cosine_sim = v1.cosine_similarity(v2)
-
