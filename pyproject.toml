@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multivec"
-version = "0.1.0"
+version = "0.1.1"
 description = "Supercharge your LLMs with synthetic high-quality multimodal Data"
 authors = ["mr-green1337 <islam.hachimi2003@gmail.com>"]
 license = "Apache-2.0"
@@ -22,9 +22,7 @@ pinecone = "^5.3.1"
 qdrant-client = "^1.11.3"
 python-docx = "^1.1.2"
 pillow = "^10.4.0"
-spacy = "^3.8.2"
 pytest = "^8.3.3"
-docx2pdf = "^0.1.8"
 bs4 = "^0.0.2"
 tenacity = "^9.0.0"
 openai-clip = "^1.0.1"
