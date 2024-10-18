@@ -26,3 +26,6 @@
         <p style="font-size: 20px;">Store and retrieve high-dimensional vectors efficiently.</p>
     </div>
 </div>
+
+## Improvements
+### Use selenium for optimal scraping of data
